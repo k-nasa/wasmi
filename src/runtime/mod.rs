@@ -77,9 +77,7 @@ impl Runtime {
                 }
                 Instruction::Br(depth) => self.br(usize::from(depth))?,
                 Instruction::BrIf(depth) => self.br_if(usize::from(depth))?,
-                // NOTE br_tableは未実装であるが、多くのテストがこのインストラクションに依存している。
-                // unimplementedマクロでパニックするとテスト時のハンドリングが難しいので、br_tableに関してはUnimplementedエラーを返してテストでハンドリングする
-                Instruction::BrTable(_, _) => Err(RuntimeError::Unimplemented)?,
+                Instruction::BrTable(targets, default) => self.br_table(targets, default)?,
                 Instruction::Return => {
                     self.apop()?;
                 }
@@ -201,7 +199,7 @@ impl Runtime {
                 Instruction::I64LeS => self.le_s::<i64>(),
                 Instruction::I64LeU => self.le_u::<i64>(),
                 Instruction::I64GeS => self.ge_s::<i64>(),
-                Instruction::I64GeU => self.ge_u::<i64>(),
+                Instruction::I64GeU => self.ge::<i64>(),
 
                 Instruction::F32Eq => self.eq::<f32>(),
                 Instruction::F32Ne => self.neq::<f32>(),
@@ -709,6 +707,17 @@ impl Runtime {
         }
 
         self.br(depth)
+    }
+
+    fn br_table(&mut self, targets: Vec<VerUintN>, default: VerUintN) -> Result<(), RuntimeError> {
+        let index: usize = self.vpop()?.into();
+        let depth = if index < targets.len() {
+            targets[index]
+        } else {
+            default
+        };
+
+        self.br(depth.into())
     }
 
     fn pc(&mut self) -> usize {
